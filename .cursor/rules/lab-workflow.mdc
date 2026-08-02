@@ -1,0 +1,105 @@
+---
+description: Lab workflow — unknowns, train/wipe lifecycle, long-run wait, handoff
+alwaysApply: true
+---
+
+# Lab Workflow
+
+Work quality is bottlenecked by clarifying **unknowns** — the gap between the map (prompts, skills, context) and the territory (codebase, real constraints). Prefer cheap discovery over expensive mid-implementation pivots.
+
+## Unknown types
+
+| Type | Meaning | Agent response |
+|---|---|---|
+| Known knowns | What the user already stated | Follow as constraints |
+| Known unknowns | Gaps the user knows exist | Interview / plan around them |
+| Unknown knowns | Criteria only recognizable when seen | Prototype / brainstorm for reaction |
+| Unknown unknowns | Not considered at all | Blind spot pass; teach so they can prompt better |
+
+## Balance specificity
+
+- Too specific → follow instructions even when a pivot is better.
+- Too vague → invent “best practices” that may not fit.
+- When unknowns are unclear: ask for starting context (experience with the problem/codebase, where they are in thought process) and collaborate as a thought partner.
+
+## Pre-implementation
+
+1. **Blind spot pass** — On unfamiliar areas, surface relevant unknown unknowns and how to prompt better. Use the words “blind spot pass” / “unknown unknowns” when the user asks.
+2. **Brainstorm / prototype** — For unknown knowns (esp. UX / TB layout / path shapes), offer divergent options or a throwaway mock before wiring real code.
+3. **Interview** — One question at a time; prioritize answers that would change architecture.
+4. **References** — Prefer source code over screenshots when the user points at a folder/component to copy semantics from.
+5. **Implementation plan** — Lead with decisions most likely to change (loss, freeze/splice, sampling, UX). Bury mechanical refactoring.
+
+At session start on non-trivial work: check known unknowns and whether to run a blind spot pass, brainstorm, interview, or plan **before** coding.
+
+## This lab’s experiment habits
+
+Primary loop in this repo: change loss/API → update `ARCHITECTURE.md` → wipe old `checkpoints/<run>/` + `runs/<run>/` when the user asks → train → judge on TensorBoard.
+
+- Prefer a **short throwaway** (10–100 epochs) or a freeze/splice interview **before** another 500-epoch wipe when glue / path / TB layout is unsettled.
+- On rename: **mutate checkpoint files**; do not leave runtime remapping in load code.
+- Prefer named decode paths over ambiguous flags (do not reintroduce `active_skips`-style APIs).
+- On process kill / exit `4294967295`: resume from `latest.pt`; do not assume a Python traceback.
+- Keep `ARCHITECTURE.md` as the current map of models/modes; use `implementation-notes.md` for deviations when asked or when pivots are likely.
+
+### Pre-train interview checklist
+
+Ask only what would change the run (one question at a time when interviewing):
+
+1. Architecture intent — exist / freeze / remove / splice
+2. Loss per path (incl. “nowhere to cascade”)
+3. Sampling (e.g. adapt `(1, α, α²)`)
+4. Eval + TB layout (rows, fixed vs random)
+5. Lifecycle — wipe which dirs, epochs, checkpoint interval, resume policy
+6. Keep-vs-delete success signal
+
+## During / after implementation
+
+- On edge cases that force a plan change: pick the conservative option, log under **Deviations**, continue.
+- **Pitch / explainer** or **quiz** after large changes when the user asks, so they only keep a run when they understand it.
+
+## Long-running wait and continue
+
+When a task takes minutes or hours (GPU training, conversion, large exports), **stay on it**: start it, wait, check in regularly, and continue automatically when it finishes. Do not stop after launching and ask the user to return.
+
+Applies to: `train_autoencoder.py` runs, long validation, batch TB restore, any command expected to run longer than ~2 minutes.
+
+1. **Launch in background** (`block_until_ms: 0`).
+2. **Arm completion detection** — `notify_on_output` with success/failure regex (e.g. `Epoch \d+/`, `training complete`, `Traceback`, `Error`).
+3. **Poll between wakes** — Await on the shell ID or read the terminal file.
+4. **Check in** — latest log lines (loss, epoch, alpha); `checkpoints/<run>/latest.pt` / `epoch_*.pt`; process still alive.
+5. **Act on completion** — success → next step; failure → diagnose from log tail, fix if clear, retry or report blocker.
+6. **Update `handoff.md`** if the session may end before follow-up completes, or on unrecoverable failure (include exact resume command).
+
+| Task type | Initial check | Heartbeat |
+|---|---|---|
+| Smoke / unit test | 30s | 1–2m |
+| Training epoch | 2–5m | 5–15m |
+| Full multi-hundred-epoch run | 5m | 15–30m |
+| Conversion / export | 1m | 5m |
+
+Prefer event-driven wakes (log pattern, new checkpoint) over fixed polling when a clear signal exists.
+
+Rules: never idle silently after starting a long job; report briefly on each check-in; do not duplicate running jobs (check terminals first); kill only when the user asks or the job is clearly stuck (no log movement for 2× the expected heartbeat).
+
+## Agent handoff
+
+Maintain `handoff.md` at the repo root so the next agent can continue without re-discovering context.
+
+Update before ending a session or whenever work would be hard to resume from chat alone: after a meaningful milestone, after a blocker, or before handing off. Skip trivial Q&A with no project impact.
+
+```markdown
+## [YYYY-MM-DD] — <short task title>
+
+### Done
+- Concrete outcomes (files, commands, metrics)
+
+### Remaining
+- Next steps, blockers, open questions
+- Links to artifacts (e.g. ARCHITECTURE.md, checkpoint paths)
+
+### Notes for next agent
+- Commands, env quirks, paths, decisions
+```
+
+Append new dated sections at the top (newest first). Be specific (paths, checkpoint names, metric values, errors). Separate Done vs Remaining. Do not duplicate long reports — link to artifacts instead.

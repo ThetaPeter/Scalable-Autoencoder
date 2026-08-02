@@ -1,0 +1,15 @@
+model,path,mse,pixel_accuracy_pct,combination_loss_full
+ae_recon,full,0.292425,57.639,
+ae_recon,trim1,3.841504,0.620,
+ae_recon,trim2,5.918730,0.045,
+ae_recon,trim3,4.118811,0.109,
+ae_layer_500,full,0.289595,58.179,0.289595
+ae_layer_500,trim1,1.351374,10.435,
+ae_layer_500,trim2,1.402347,4.570,
+ae_layer_500,trim3,0.382403,26.214,
+ae_layer_adapt_500,full,0.290138,58.341,0.290138
+ae_layer_adapt_500,trim1,0.299885,56.554,
+ae_layer_adapt_500,trim2,0.336187,49.303,
+ae_layer_adapt2,full,0.312025,53.713,0.312025
+ae_layer_adapt2,trim1,0.316914,52.823,
+ae_layer_adapt2,trim2,0.324362,50.880,
